@@ -17,7 +17,7 @@ notstates = False
 #The output should be in a np array form. Note that the y value doesn't have to be returned. 
 
 def file_data(filename):
-    filename="Data/06_01.csv"
+    filename="data/06_01.csv"
     myVals = pd.DataFrame.from_csv(filename)
     #myVals['seconds'] = (myVals['seconds']*100.0).astype(int)
     print("MY vals: " , myVals)
