@@ -100,6 +100,26 @@ def main():
 	for i in tf.global_variables():
 		print(i.name)
 
+	def do_validation(f2,data,curEpoch):
+		maxIter = int((len(data)/30.0)-1.0)
+		val_losses = []
+		training_state = None
+
+		for i in xrange(0,maxIter):
+			myTrain_x = data[30*i:30*(i+1),0:1].reshape((1,30,1))
+			myTrain_y = data[30*i+1:30*(i+1)+1,0:1].reshape((1,30,1))
+			myfeed_dict={X: myTrain_x, Y: myTrain_y}
+			if training_state is not None:
+				myfeed_dict[h] = training_state
+			
+			empty,acc,loss,training_state,output_data_2 = sess.run([optimizer, accuracy, cost, states,output_data], feed_dict = myfeed_dict)
+			val_losses.append(loss)
+		valLoss = sum(val_losses)/len(val_losses)
+		print("Validation Loss= " + \
+				  "{:.6f}".format(valLoss))
+		f2.write("%d\t%f\n"%(curEpoch, valLoss))
+		f2.flush()
+
 	step = 0
 	with tf.Session(config=tf.ConfigProto(log_device_placement=False, allow_soft_placement=False)) as sess:
 		print("Session Created")
@@ -116,6 +136,7 @@ def main():
 		print ("Number train: " , len(data))
 		train_file_name = "loss.csv"
 		train_loss_file = open(train_file_name,'w')
+		f2 = open("val_loss.csv","w")
 
 		while curEpoch < numEpochs:
 			i += 1
@@ -132,10 +153,10 @@ def main():
 			empty,acc,loss,training_state,output_data_2 = sess.run([optimizer, accuracy, cost, states,output_data], feed_dict = myfeed_dict)
 			#print("TrainX: ", myTrain_x)
 			
-			print("Iter " + str(i) + ", Minibatch Loss= " + \
+			print("Epoch: " + str(curEpoch) + " Iter " + str(i) + ", Minibatch Loss= " + \
 				  "{:.6f}".format(loss) + ", Training Accuracy= " + \
 			  	  "{:.5f}".format(acc))
-			if (i % 100 == 0):
+			if (i % 500 == 0):
 				outputVal = np.around(np.array(output_data_2*standardDev+meanVal))
 				correctVal = myTrain_y*standardDev+meanVal
 				print("Output: " , outputVal)
@@ -144,6 +165,8 @@ def main():
 				
 				train_loss_file.write(str(loss*standardDev)+"\n")
 				train_loss_file.flush()
+				do_validation(f2,data,curEpoch)
+
 		train_loss_file.close()
 			
 
