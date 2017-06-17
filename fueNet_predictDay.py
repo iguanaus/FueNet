@@ -53,7 +53,7 @@ def main():
 	learning_rate = 0.001
 	decay = 0.9
 	numEpochs = 10
-	reuse = False
+	reuse = True
 
 	#Structure of this will be [weekday,seconds*1000,intPrice,volume]
 
@@ -103,27 +103,6 @@ def main():
 	for i in tf.global_variables():
 		print(i.name)
 
-	def do_validation(f2,data,curEpoch):
-		maxIter = int((len(data)/30.0)-1.0)
-		val_losses = []
-		training_state = None
-
-		for i in xrange(0,maxIter):
-			myTrain_x = data[30*i:30*(i+1),0:1].reshape((1,30,1))
-			myTrain_y = data[30*i+1:30*(i+1)+1,0:1].reshape((1,30,1))
-			myfeed_dict={X: myTrain_x, Y: myTrain_y}
-			if training_state is not None:
-				myfeed_dict[h] = training_state
-			
-			empty,acc,loss,training_state,output_data_2 = sess.run([optimizer, accuracy, cost, states,output_data], feed_dict = myfeed_dict)
-			val_losses.append(loss)
-			
-		valLoss = sum(val_losses)/len(val_losses)
-		print("Validation Loss= " + \
-				  "{:.6f}".format(valLoss))
-		f2.write("%d\t%f\n"%(curEpoch, valLoss))
-		f2.flush()
-
 	step = 0
 	savename="modelFile"
 	saver = tf.train.Saver()
@@ -158,41 +137,41 @@ def main():
 		train_file_name = "loss.csv"
 		train_loss_file = open(train_file_name,'w')
 		
+		outputList = np.array([[]])
+		desiredList = np.array([[]])
 
-		while curEpoch < numEpochs:
+		print("Max: " , int(len(data)-1.0)/30.0)
+
+		while i <= int(((len(data)-1.0)/30.0)-2):
 			i += 1
-			if ((i+1) > (len(data)-1.0)/30.0):
-				i = 0
-				curEpoch += 1
+			print("I: " , i)
 			myTrain_x = data[30*i:30*(i+1),0:1].reshape((1,30,1))
 			myTrain_y = data[30*i+1:30*(i+1)+1,0:1].reshape((1,30,1))
-
 			myfeed_dict={X: myTrain_x, Y: myTrain_y}
 			if training_state is not None:
 				myfeed_dict[h] = training_state
-			
-			empty,acc,loss,training_state,output_data_2 = sess.run([optimizer, accuracy, cost, states,output_data], feed_dict = myfeed_dict)
-			#print("TrainX: ", myTrain_x)
+			acc,loss,training_state,output_data_2 = sess.run([accuracy, cost, states,output_data], feed_dict = myfeed_dict)
 			
 			print("Epoch: " + str(curEpoch) + " Iter " + str(i) + ", Minibatch Loss= " + \
 				  "{:.6f}".format(loss) + ", Training Accuracy= " + \
 			  	  "{:.5f}".format(acc))
-			if (i % 5000 == 0):
-				outputVal = np.around(np.array(output_data_2*standardDev+meanVal))
-				correctVal = myTrain_y*standardDev+meanVal
-				print("Output: " , outputVal)
-				print("My train: " , correctVal)
-				print("Output - myTrain: " , outputVal-correctVal)
-				
-				train_loss_file.write(str(loss*standardDev)+"\n")
-				train_loss_file.flush()
-				do_validation(f2,data,curEpoch)
-				saver.save(sess,savename)
+			outputVal = np.around(np.array(output_data_2*standardDev+meanVal))
+			correctVal = myTrain_y*standardDev+meanVal
+			#Okay we need to write two columns to the file, one for outputVal, one for correctVal
+
+			#print("Output: " , outputVal[0])
+			outputList = np.append(outputList,outputVal)
+			desiredList = np.append(desiredList,correctVal)
+			#print(outputList)
+			#print(desiredList)
+
+			#print("My train: " , correctVal)
+			#print("Output - myTrain: " , outputVal-correctVal)
+		np.savetxt('outputList_noVol.csv', outputList, delimiter=',')
+		np.savetxt('desiredList_noVol.csv', desiredList, delimiter=',')
 
 		train_loss_file.close()
-			
 
-			
 		print("Optimization Finished!")
 		
 

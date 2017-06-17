@@ -1,0 +1,6 @@
+*.csv
+*.txt
+data/
+results/
+*.index
+*.meta
