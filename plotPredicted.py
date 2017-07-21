@@ -14,7 +14,7 @@ def plotPrices():
 		return a1
 
 	desired = read_file("desiredList_noVol.csv")
-	predicted = read_file("outputList_noVol.csv")
+	predicted = read_file("outputList _noVol.csv")
 
 	legend = ['Desired','Predicted']
 	plt.plot(desired)
@@ -46,7 +46,7 @@ def plotDiffs():
 	plt.title("Residuals - V1 Single Layer LSTM Price Prediction every second, without Volume")
 	plt.show()
 
-plotDiffs()
+plotPrices()
 
 
 
