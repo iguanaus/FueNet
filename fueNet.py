@@ -51,9 +51,9 @@ def main():
 
 	n_output = 1
 	n_hidden = 40
-	learning_rate = 0.001
+	learning_rate = 0.01
 	decay = 0.9
-	numEpochs = 10
+	numEpochs = 50
 	reuse = False
 
 	#Structure of this will be [weekday,seconds*1000,intPrice,volume]
@@ -108,7 +108,7 @@ def main():
 	global_step = tf.Variable(0, trainable=False)
 
 	learning_rate = tf.train.exponential_decay(learning_rate, global_step,
-                                           100, 0.99, staircase=True)
+                                           500, 0.97, staircase=True)
 	optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate, decay=decay).minimize(cost)
 	init = tf.global_variables_initializer()
 
