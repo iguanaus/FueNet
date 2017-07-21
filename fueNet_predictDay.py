@@ -5,7 +5,7 @@ from __future__	import print_function
 import numpy as np
 import argparse, os
 import tensorflow as tf
-from tensorflow.python.ops import init_ops
+from tensorflow.contrib.rnn.python.ops import *
 from tensorflow.contrib.rnn import BasicLSTMCell, BasicRNNCell, GRUCell
 import pandas as pd
 import re
@@ -17,26 +17,38 @@ notstates = False
 #The output should be in a np array form. Note that the y value doesn't have to be returned. 
 
 def file_data(filename):
-    filename="data/06_01.csv"
-    myVals = pd.DataFrame.from_csv(filename)
-    #myVals['seconds'] = (myVals['seconds']*100.0).astype(int)
-    print("MY vals: " , myVals)
-    myVals['normPrice'] = myVals['intPrice'] - myVals['intPrice'].mean()
-    myVals['stdPrice'] = (myVals['normPrice'])/myVals['normPrice'].std()*1.0
-    myVals['normVolume'] = myVals['volume'] - myVals['volume'].mean()
-    myVals['stdVolume'] = (myVals['normVolume'])/myVals['normVolume'].std()*1.0
-    standardDev = myVals['normPrice'].std()*1.0
-    meanVal = myVals['intPrice'].mean()
-    #Now every 4th row. df.iloc[::5, :]
-    myVals = myVals.iloc[::5, :]
-    print ("standardDev: " , standardDev)
-    print ("Mean val: " , meanVal)
+	filename="data/06_01.csv"
+	myVals = pd.DataFrame.from_csv(filename)
+	#myVals['seconds'] = (myVals['seconds']*100.0).astype(int)
+	print("MY vals: " , myVals)
+	myVals['volume'] = pd.rolling_mean(myVals['volume'],5).fillna(0)
+	myVals = myVals.iloc[::5, :]
+	myVals['intPrice'] = myVals['intPrice']-myVals['intPrice'].shift(1).fillna(0)
+	print("Int price: " , myVals)
+	myVals['normPrice'] = myVals['intPrice'] - myVals['intPrice'].mean()
+	myVals['stdPrice'] = (myVals['normPrice'])/myVals['normPrice'].std()*1.0
+	myVals['volume'] = myVals['volume']-myVals['volume'].shift(1).fillna(0)
+	myVals['normVolume'] = myVals['volume'] - myVals['volume'].mean()
+	myVals['stdVolume'] = (myVals['normVolume'])/myVals['normVolume'].std()*1.0
+	standardDev = myVals['normPrice'].std()*1.0
+	meanVal = myVals['intPrice'].mean()
+	#Now every 4th row. df.iloc[::5, :]
+	#Okay so here I pick the indicators. Let's first do a price EMA
+	
+	myVals['stdPrice'] = pd.rolling_mean(myVals['stdPrice'],10).fillna(0)
 
-    
+	#myVals['volume'] = pd.rolling_mean(myVals['volume'],20).fillna(0)
+	#myVals['volume'] = pd.rolling_mean(myVals['volume'],20).fillna(0)
 
-    newmyVals = myVals[['stdPrice','stdVolume']]
-    allData = newmyVals.as_matrix().astype(float)
-    return allData , standardDev , meanVal
+	print ("standardDev: " , standardDev)
+	print ("Mean val: " , meanVal)
+
+
+
+	newmyVals = myVals[['stdPrice','stdVolume']]
+	allData = newmyVals.as_matrix().astype(float)[1:,:]
+	print("MYData: " , allData)
+	return allData , standardDev , meanVal
 
 
 def main():
@@ -57,18 +69,24 @@ def main():
 
 	#Structure of this will be [weekday,seconds*1000,intPrice,volume]
 
-	X = tf.placeholder("float32",[None,30,1])
+	X = tf.placeholder("float32",[None,30,2])
 	Y = tf.placeholder("float32",[None,30,1])
 
 	# Input to hidden layer
 	cell = None
 	h = None
+	#h_b = Non
+	num_layers = 1
 	#h_b = None
+	sequence_length = [30] * 1
 
 	cell = BasicLSTMCell(n_hidden, state_is_tuple=True, forget_bias=1)
+
+	cells = core_rnn_cell_impl.MultiRNNCell([cell] * num_layers, state_is_tuple=True)
 	if h == None:
-		h = cell.zero_state(1,tf.int32)
-	hidden_out, states = tf.nn.dynamic_rnn(cell, X, dtype=tf.float32)
+		h = cells.zero_state(1,tf.float32)
+
+	hidden_out, states = tf.nn.dynamic_rnn(cells, X, sequence_length=sequence_length, dtype=tf.float32,initial_state=h)
 
 
 	# Hidden Layer to Output
@@ -145,7 +163,7 @@ def main():
 		while i <= int(((len(data)-1.0)/30.0)-2):
 			i += 1
 			print("I: " , i)
-			myTrain_x = data[30*i:30*(i+1),0:1].reshape((1,30,1))
+			myTrain_x = data[30*i:30*(i+1),:].reshape((1,30,2))
 			myTrain_y = data[30*i+1:30*(i+1)+1,0:1].reshape((1,30,1))
 			myfeed_dict={X: myTrain_x, Y: myTrain_y}
 			if training_state is not None:
@@ -155,7 +173,7 @@ def main():
 			print("Epoch: " + str(curEpoch) + " Iter " + str(i) + ", Minibatch Loss= " + \
 				  "{:.6f}".format(loss) + ", Training Accuracy= " + \
 			  	  "{:.5f}".format(acc))
-			outputVal = np.around(np.array(output_data_2*standardDev+meanVal))
+			outputVal = np.array(output_data_2*standardDev+meanVal)
 			correctVal = myTrain_y*standardDev+meanVal
 			#Okay we need to write two columns to the file, one for outputVal, one for correctVal
 

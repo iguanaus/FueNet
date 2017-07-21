@@ -18,26 +18,38 @@ notstates = False
 #The output should be in a np array form. Note that the y value doesn't have to be returned. 
 
 def file_data(filename):
-    filename="data/06_01.csv"
-    myVals = pd.DataFrame.from_csv(filename)
-    #myVals['seconds'] = (myVals['seconds']*100.0).astype(int)
-    print("MY vals: " , myVals)
-    myVals['normPrice'] = myVals['intPrice'] - myVals['intPrice'].mean()
-    myVals['stdPrice'] = (myVals['normPrice'])/myVals['normPrice'].std()*1.0
-    myVals['normVolume'] = myVals['volume'] - myVals['volume'].mean()
-    myVals['stdVolume'] = (myVals['normVolume'])/myVals['normVolume'].std()*1.0
-    standardDev = myVals['normPrice'].std()*1.0
-    meanVal = myVals['intPrice'].mean()
-    #Now every 4th row. df.iloc[::5, :]
-    myVals = myVals.iloc[::5, :]
-    print ("standardDev: " , standardDev)
-    print ("Mean val: " , meanVal)
+	filename="data/06_01.csv"
+	myVals = pd.DataFrame.from_csv(filename)
+	#myVals['seconds'] = (myVals['seconds']*100.0).astype(int)
+	print("MY vals: " , myVals)
+	myVals['volume'] = pd.rolling_mean(myVals['volume'],5).fillna(0)
+	myVals = myVals.iloc[::5, :]
+	myVals['intPrice'] = myVals['intPrice']-myVals['intPrice'].shift(1).fillna(0)
+	print("Int price: " , myVals)
+	myVals['normPrice'] = myVals['intPrice'] - myVals['intPrice'].mean()
+	myVals['stdPrice'] = (myVals['normPrice'])/myVals['normPrice'].std()*1.0
+	myVals['volume'] = myVals['volume']-myVals['volume'].shift(1).fillna(0)
+	myVals['normVolume'] = myVals['volume'] - myVals['volume'].mean()
+	myVals['stdVolume'] = (myVals['normVolume'])/myVals['normVolume'].std()*1.0
+	standardDev = myVals['normPrice'].std()*1.0
+	meanVal = myVals['intPrice'].mean()
+	#Now every 4th row. df.iloc[::5, :]
+	#Okay so here I pick the indicators. Let's first do a price EMA
+	
+	myVals['stdPrice'] = pd.rolling_mean(myVals['stdPrice'],10).fillna(0)
 
-    
+	#myVals['volume'] = pd.rolling_mean(myVals['volume'],20).fillna(0)
+	#myVals['volume'] = pd.rolling_mean(myVals['volume'],20).fillna(0)
 
-    newmyVals = myVals[['stdPrice','stdVolume']]
-    allData = newmyVals.as_matrix().astype(float)
-    return allData , standardDev , meanVal
+	print ("standardDev: " , standardDev)
+	print ("Mean val: " , meanVal)
+
+
+
+	newmyVals = myVals[['stdPrice','stdVolume']]
+	allData = newmyVals.as_matrix().astype(float)[1:,:]
+	print("MYData: " , allData)
+	return allData , standardDev , meanVal
 
 
 def main():
@@ -64,7 +76,7 @@ def main():
 	# Input to hidden layer
 	cell = None
 	h = None
-	num_layers = 3
+	num_layers = 1
 	#h_b = None
 	sequence_length = [30] * 1
 
@@ -190,7 +202,7 @@ def main():
 				  "{:.6f}".format(loss) + ", Training Accuracy= " + \
 			  	  "{:.5f}".format(acc))
 			if (i % 5000 == 0):
-				outputVal = np.around(np.array(output_data_2*standardDev+meanVal))
+				outputVal = np.array(output_data_2*standardDev+meanVal)
 				correctVal = myTrain_y*standardDev+meanVal
 				print("Output: " , outputVal)
 				print("My train: " , correctVal)
