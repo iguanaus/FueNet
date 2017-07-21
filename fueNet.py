@@ -22,8 +22,11 @@ def file_data(filename):
 	myVals = pd.DataFrame.from_csv(filename)
 	#myVals['seconds'] = (myVals['seconds']*100.0).astype(int)
 	print("MY vals: " , myVals)
-	myVals['volume'] = pd.rolling_mean(myVals['volume'],5).fillna(0)
-	myVals = myVals.iloc[::5, :]
+	skipAmount = 200.0
+	myVals['volume'] = pd.rolling_mean(myVals['volume'],skipAmount).fillna(0)
+	#Skipping each 5th val
+	myVals = myVals.iloc[::skipAmount, :]
+	print("Skipping values: " , myVals)
 	myVals['intPrice'] = myVals['intPrice']-myVals['intPrice'].shift(1).fillna(0)
 	print("Int price: " , myVals)
 	myVals['normPrice'] = myVals['intPrice'] - myVals['intPrice'].mean()
@@ -35,7 +38,7 @@ def file_data(filename):
 	meanVal = myVals['intPrice'].mean()
 	#Now every 4th row. df.iloc[::5, :]
 	#Okay so here I pick the indicators. Let's first do a price EMA
-	
+	#Mean of the last 10 values
 	myVals['stdPrice'] = pd.rolling_mean(myVals['stdPrice'],10).fillna(0)
 
 	#myVals['volume'] = pd.rolling_mean(myVals['volume'],20).fillna(0)
@@ -46,7 +49,7 @@ def file_data(filename):
 
 
 
-	newmyVals = myVals[['stdPrice','stdVolume']]
+	newmyVals = myVals[['intPrice','volume']]
 	allData = newmyVals.as_matrix().astype(float)[1:,:]
 	print("MYData: " , allData)
 	return allData , standardDev , meanVal
@@ -62,21 +65,21 @@ def main():
 	n_input = len(data[0])
 
 	n_output = 1
-	n_hidden = 40
-	learning_rate = 0.01
+	n_hidden = 100
+	learning_rate = 0.005
 	decay = 0.9
 	numEpochs = 50
 	reuse = False
 
 	#Structure of this will be [weekday,seconds*1000,intPrice,volume]
 
-	X = tf.placeholder("float32",[None,30,2])
+	X = tf.placeholder("float32",[None,30,1])
 	Y = tf.placeholder("float32",[None,30,1])
 
 	# Input to hidden layer
 	cell = None
 	h = None
-	num_layers = 1
+	num_layers = 3
 	#h_b = None
 	sequence_length = [30] * 1
 
@@ -132,8 +135,9 @@ def main():
 		val_losses = []
 		training_state = None
 
-		for i in xrange(0,maxIter):
-			myTrain_x = data[30*i:30*(i+1),:].reshape((1,30,2))
+		for i in xrange(1,maxIter):
+			#Batch sizes of 30. 
+			myTrain_x = data[30*i:30*(i+1),0:1].reshape((1,30,1))
 			myTrain_y = data[30*i+1:30*(i+1)+1,0:1].reshape((1,30,1))
 			myfeed_dict={X: myTrain_x, Y: myTrain_y}
 			if training_state is not None:
@@ -177,7 +181,7 @@ def main():
 
 		
 		training_state = None
-		i = -1
+		i = 0
 		print ("Number train: " , len(data))
 		train_file_name = "loss.csv"
 		train_loss_file = open(train_file_name,'w')
@@ -185,10 +189,11 @@ def main():
 
 		while curEpoch < numEpochs:
 			i += 1
+			#Batch sizes of 30
 			if ((i+1) > (len(data)-1.0)/30.0):
-				i = 0
+				i = 1
 				curEpoch += 1
-			myTrain_x = data[30*i:30*(i+1),:].reshape((1,30,2))
+			myTrain_x = data[30*i:30*(i+1),0:1].reshape((1,30,1))
 			myTrain_y = data[30*i+1:30*(i+1)+1,0:1].reshape((1,30,1))
 
 			myfeed_dict={X: myTrain_x, Y: myTrain_y}
@@ -201,12 +206,15 @@ def main():
 			print("Epoch: " + str(curEpoch) + " Iter " + str(i) + ", Minibatch Loss= " + \
 				  "{:.6f}".format(loss) + ", Training Accuracy= " + \
 			  	  "{:.5f}".format(acc))
-			if (i % 5000 == 0):
-				outputVal = np.array(output_data_2*standardDev+meanVal)
-				correctVal = myTrain_y*standardDev+meanVal
+			if (i % 10 == 0):
+				outputVal = np.array(output_data_2*1.0+0.0)
+				correctVal = myTrain_y
+				#outputVal = np.array(output_data_2*standardDev+meanVal)
+				#correctVal = myTrain_y*standardDev+meanVal
 				print("Output: " , outputVal)
 				print("My train: " , correctVal)
 				print("Output - myTrain: " , outputVal-correctVal)
+				print("My loss: " , loss)
 				
 				train_loss_file.write(str(loss*standardDev)+"\n")
 				train_loss_file.flush()

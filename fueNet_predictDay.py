@@ -21,8 +21,11 @@ def file_data(filename):
 	myVals = pd.DataFrame.from_csv(filename)
 	#myVals['seconds'] = (myVals['seconds']*100.0).astype(int)
 	print("MY vals: " , myVals)
-	myVals['volume'] = pd.rolling_mean(myVals['volume'],5).fillna(0)
-	myVals = myVals.iloc[::5, :]
+	skipAmount = 50.0
+	myVals['volume'] = pd.rolling_mean(myVals['volume'],skipAmount).fillna(0)
+	#Skipping each 5th val
+	myVals = myVals.iloc[::skipAmount, :]
+	print("Skipping values: " , myVals)
 	myVals['intPrice'] = myVals['intPrice']-myVals['intPrice'].shift(1).fillna(0)
 	print("Int price: " , myVals)
 	myVals['normPrice'] = myVals['intPrice'] - myVals['intPrice'].mean()
@@ -34,7 +37,7 @@ def file_data(filename):
 	meanVal = myVals['intPrice'].mean()
 	#Now every 4th row. df.iloc[::5, :]
 	#Okay so here I pick the indicators. Let's first do a price EMA
-	
+	#Mean of the last 10 values
 	myVals['stdPrice'] = pd.rolling_mean(myVals['stdPrice'],10).fillna(0)
 
 	#myVals['volume'] = pd.rolling_mean(myVals['volume'],20).fillna(0)
@@ -45,7 +48,7 @@ def file_data(filename):
 
 
 
-	newmyVals = myVals[['stdPrice','stdVolume']]
+	newmyVals = myVals[['intPrice','volume']]
 	allData = newmyVals.as_matrix().astype(float)[1:,:]
 	print("MYData: " , allData)
 	return allData , standardDev , meanVal
@@ -150,7 +153,7 @@ def main():
 
 		
 		training_state = None
-		i = -1
+		i = 0
 		print ("Number train: " , len(data))
 		train_file_name = "loss.csv"
 		train_loss_file = open(train_file_name,'w')
@@ -165,6 +168,8 @@ def main():
 			print("I: " , i)
 			myTrain_x = data[30*i:30*(i+1),:].reshape((1,30,2))
 			myTrain_y = data[30*i+1:30*(i+1)+1,0:1].reshape((1,30,1))
+			print("X Predict: " , myTrain_x)
+			print("Y Values: " , myTrain_y)
 			myfeed_dict={X: myTrain_x, Y: myTrain_y}
 			if training_state is not None:
 				myfeed_dict[h] = training_state
@@ -173,8 +178,10 @@ def main():
 			print("Epoch: " + str(curEpoch) + " Iter " + str(i) + ", Minibatch Loss= " + \
 				  "{:.6f}".format(loss) + ", Training Accuracy= " + \
 			  	  "{:.5f}".format(acc))
-			outputVal = np.array(output_data_2*standardDev+meanVal)
-			correctVal = myTrain_y*standardDev+meanVal
+			outputVal = output_data_2
+			correctVal = myTrain_y
+			#outputVal = np.array(output_data_2*standardDev+meanVal)
+			#correctVal = myTrain_y*standardDev+meanVal
 			#Okay we need to write two columns to the file, one for outputVal, one for correctVal
 
 			#print("Output: " , outputVal[0])
@@ -185,8 +192,8 @@ def main():
 
 			#print("My train: " , correctVal)
 			#print("Output - myTrain: " , outputVal-correctVal)
-		np.savetxt('outputList_noVol.csv', outputList, delimiter=',')
-		np.savetxt('desiredList_noVol.csv', desiredList, delimiter=',')
+		np.savetxt('outputList_vol50.csv', outputList, delimiter=',')
+		np.savetxt('desiredList_vol50.csv', desiredList, delimiter=',')
 
 		train_loss_file.close()
 

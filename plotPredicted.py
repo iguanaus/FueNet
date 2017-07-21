@@ -5,16 +5,21 @@ import numpy as np
 #This file takes in the desired and predicted, and puts them on top of eachother to see.
 
 def plotPrices():
+
 	def read_file(filename):
+		val = 0
 		print("Reading: " , filename)
 		fo = open(filename,'r')
 		name = filename
 		a1 = [float(x) for x in fo]
+		#for i in xrange(0, len(a1)):
+		#	val = val + a1[i]
+		#	a1[i] = val
 		print a1
 		return a1
 
-	desired = read_file("desiredList_noVol.csv")
-	predicted = read_file("outputList _noVol.csv")
+	desired = read_file("desiredList_vol50.csv")
+	predicted = read_file("outputList_vol50.csv")
 
 	legend = ['Desired','Predicted']
 	plt.plot(desired)

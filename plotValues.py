@@ -13,12 +13,12 @@ plt.plot(newVals,lossValues)
 
 lossValues2 = np.genfromtxt(loss_files[1],delimiter=',')
 newVals2 = range(0,len(lossValues2))
-plt.plot(newVals2,lossValues2)
+#plt.plot(newVals2,lossValues2)
 
 
 plt.xlabel("Steps (in 10's)")
 plt.ylabel("MSE Training Error - Normalized points")
 plt.title("Training Error error")
-plt.legend(['Without Volume', 'With Volume'])
+plt.legend(['Values every 50'])
 #plt.plot(lossValues_oldbatch)
 plt.show()
