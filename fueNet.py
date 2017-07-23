@@ -6,15 +6,18 @@ import numpy as np
 import argparse, os
 import tensorflow as tf
 from tensorflow.contrib.rnn.python.ops import *
+import matplotlib.pyplot as plt
 #from tensorflow.python.ops import init_ops
 from tensorflow.contrib.rnn import BasicLSTMCell, BasicRNNCell, GRUCell
 import pandas as pd
 import re
 
-word_level = False
-notstates = False
-
-#THis needs to take in the data, then return the data in a list of [weekday,seconds*1000,intPrice,volume]
+skipAmount = 10.0 #This is how frequent the data should be sampled.
+emaPredictInFuture = 100 #This is how much into the future it should have to predict
+seq_len = 50 #Sequence length.
+smoothedPrice = 200 #This just smooths the input. 
+  
+#THis needs to take in the data, then return the data in a list of
 #The output should be in a np array form. Note that the y value doesn't have to be returned. 
 
 def file_data(filename="data/06_01_10.csv"):
@@ -22,13 +25,12 @@ def file_data(filename="data/06_01_10.csv"):
 	myVals = pd.DataFrame.from_csv(filename)
 	#myVals['seconds'] = (myVals['seconds']*100.0).astype(int)
 	print("MY vals: " , myVals)
-	skipAmount = 100.0
-	emaInFuture = 10
+	emaInFuture = emaPredictInFuture
 	myVals['volume'] = pd.rolling_mean(myVals['volume'],skipAmount).fillna(0)
 	#Skipping each 5th val
 	myVals = myVals.iloc[::skipAmount, :]
 	print("Skipping values: " , myVals)
-	myVals['emaPrice'] = pd.rolling_mean(myVals['intPrice'].shift(10),10).fillna(0)
+	myVals['emaPrice'] = pd.rolling_mean(myVals['intPrice'].shift(10),emaInFuture).fillna(0)
 	myVals['goodBuy'] = myVals['intPrice']<myVals['emaPrice']
 	#myVals['intPrice'] = myVals['intPrice']-myVals['intPrice'].shift(1).fillna(0)
 	print("Int price: " , myVals)
@@ -42,7 +44,7 @@ def file_data(filename="data/06_01_10.csv"):
 	#Now every 4th row. df.iloc[::5, :]
 	#Okay so here I pick the indicators. Let's first do a price EMA
 	#Mean of the last 10 values
-	myVals['stdPrice'] = pd.rolling_mean(myVals['stdPrice'],10).fillna(0)
+	#myVals['stdPrice'] = pd.rolling_mean(myVals['stdPrice'],10).fillna(0)
 
 	#myVals['volume'] = pd.rolling_mean(myVals['volume'],20).fillna(0)
 	#myVals['volume'] = pd.rolling_mean(myVals['volume'],20).fillna(0)
@@ -53,10 +55,16 @@ def file_data(filename="data/06_01_10.csv"):
 
 
 	newmyVals = myVals[['intPrice','volume','goodBuy']]
+
+	#newmyVals['intPrice'] = pd.rolling_mean(newmyVals['smoothedPrice'],200).fillna(0)
+
 	meanBuy = myVals['goodBuy'].mean()
 	vals = (myVals['goodBuy']-meanBuy)*(myVals['goodBuy']-meanBuy)
-	print("Baseline: " , vals.mean()*30.0)
+	print("Baseline: " , vals.mean()*seq_len)
 	allData = newmyVals.as_matrix().astype(float)[1:,:]
+	#plt.plot(allData)
+	#plt.show()
+
 	print("MYData: " , allData)
 	return allData , standardDev , meanVal
 
@@ -71,7 +79,7 @@ def main():
 
 	n_input = len(data[0])
 
-	n_output = 1
+	n_output = 2
 	n_hidden = 125
 	learning_rate = 0.001
 	decay = 0.9
@@ -80,15 +88,15 @@ def main():
 
 	#Structure of this will be [weekday,seconds*1000,intPrice,volume]
 
-	X = tf.placeholder("float32",[None,30,2])
-	Y = tf.placeholder("float32",[None,30,1])
+	X = tf.placeholder("float32",[None,seq_len,2])
+	Y = tf.placeholder("int64",[None,seq_len])
 
 	# Input to hidden layer
 	cell = None
 	h = None
 	num_layers = 3
 	#h_b = None
-	sequence_length = [30] * 1
+	sequence_length = [seq_len] * 1
 
 
 	cell = BasicLSTMCell(n_hidden, state_is_tuple=True, forget_bias=1)
@@ -123,9 +131,10 @@ def main():
 	# define evaluate process
 	print("Output data: " , output_data)
 	print("Labels: " , Y)
-	cost = tf.reduce_sum(tf.square(output_data-Y))
-	correct_pred = tf.equal(tf.round(output_data*standardDev+meanVal), tf.round(Y*standardDev+meanVal))
-	accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+
+	cost = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=output_data, labels=Y))
+	#correct_pred = tf.equal(tf.round(output_data*standardDev+meanVal), tf.round(Y*standardDev+meanVal))
+	#accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
 
 	# --- Initialization ----------------------
@@ -140,19 +149,19 @@ def main():
 		print(i.name)
 
 	def do_validation(f2,data,curEpoch):
-		maxIter = int((len(data)/30.0)-1.0)
+		maxIter = int((len(data)/seq_len)-1.0)
 		val_losses = []
 		training_state = None
 
 		for i in xrange(1,maxIter):
 			#Batch sizes of 30. 
-			myTrain_x = data[30*i:30*(i+1),0:2].reshape((1,30,2))
-			myTrain_y = data[30*i+1:30*(i+1)+1,2:3].reshape((1,30,1))
+			myTrain_x = data[seq_len*i:seq_len*(i+1),0:2].reshape((1,seq_len,2))
+			myTrain_y = data[seq_len*i+1:seq_len*(i+1)+1,2:3].reshape((1,seq_len))
 			myfeed_dict={X: myTrain_x, Y: myTrain_y}
 			if training_state is not None:
 				myfeed_dict[h] = training_state
 			
-			empty,acc,loss,training_state,output_data_2 = sess.run([optimizer, accuracy, cost, states,output_data], feed_dict = myfeed_dict)
+			empty,loss,training_state,output_data_2 = sess.run([optimizer, cost, states,output_data], feed_dict = myfeed_dict)
 			val_losses.append(loss)
 
 		valLoss = sum(val_losses)/len(val_losses)
@@ -166,13 +175,13 @@ def main():
 
 		for i in xrange(1,maxIter):
 			#Batch sizes of 30. 
-			myTrain_x = data2[30*i:30*(i+1),0:2].reshape((1,30,2))
-			myTrain_y = data2[30*i+1:30*(i+1)+1,2:3].reshape((1,30,1))
+			myTrain_x = data2[seq_len*i:seq_len*(i+1),0:2].reshape((1,seq_len,2))
+			myTrain_y = data2[seq_len*i+1:seq_len*(i+1)+1,2:3].reshape((1,seq_len))
 			myfeed_dict={X: myTrain_x, Y: myTrain_y}
 			if training_state is not None:
 				myfeed_dict[h] = training_state
 			
-			empty,acc,loss,training_state,output_data_2 = sess.run([optimizer, accuracy, cost, states,output_data], feed_dict = myfeed_dict)
+			empty,loss,training_state,output_data_2 = sess.run([optimizer, cost, states,output_data], feed_dict = myfeed_dict)
 			val_losses.append(loss)
 			
 		valLoss = sum(val_losses)/len(val_losses)
@@ -220,22 +229,21 @@ def main():
 		while curEpoch < numEpochs:
 			i += 1
 			#Batch sizes of 30
-			if ((i+1) > (len(data)-1.0)/30.0):
+			if ((i+1) > (len(data)-1.0)/seq_len):
 				i = 1
 				curEpoch += 1
-			myTrain_x = data[30*i:30*(i+1),0:2].reshape((1,30,2))
-			myTrain_y = data[30*i+1:30*(i+1)+1,2:3].reshape((1,30,1))
+			myTrain_x = data[seq_len*i:seq_len*(i+1),0:2].reshape((1,seq_len,2))
+			myTrain_y = data[seq_len*i+1:seq_len*(i+1)+1,2:3].reshape((1,seq_len))
 
 			myfeed_dict={X: myTrain_x, Y: myTrain_y}
 			if training_state is not None:
 				myfeed_dict[h] = training_state
 			
-			empty,acc,loss,training_state,output_data_2 = sess.run([optimizer, accuracy, cost, states,output_data], feed_dict = myfeed_dict)
+			empty,loss,training_state,output_data_2 = sess.run([optimizer,  cost, states,output_data], feed_dict = myfeed_dict)
 			#print("TrainX: ", myTrain_x)
 			
 			print("Epoch: " + str(curEpoch) + " Iter " + str(i) + ", Minibatch Loss= " + \
-				  "{:.6f}".format(loss) + ", Training Accuracy= " + \
-			  	  "{:.5f}".format(acc))
+				  "{:.6f}".format(loss))
 			if (curEpoch % 5 == 0 and i ==1):
 				outputVal = np.array(output_data_2*1.0+0.0)
 				correctVal = myTrain_y
@@ -243,7 +251,7 @@ def main():
 				#correctVal = myTrain_y*standardDev+meanVal
 				print("Output: " , outputVal)
 				print("My train: " , correctVal)
-				print("Output - myTrain: " , outputVal-correctVal)
+				#print("Output - myTrain: " , outputVal-correctVal)
 				print("My loss: " , loss)
 				
 				train_loss_file.write(str(loss*standardDev)+"\n")
