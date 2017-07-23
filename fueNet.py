@@ -23,11 +23,14 @@ def file_data(filename="data/06_01_10.csv"):
 	#myVals['seconds'] = (myVals['seconds']*100.0).astype(int)
 	print("MY vals: " , myVals)
 	skipAmount = 100.0
+	emaInFuture = 10
 	myVals['volume'] = pd.rolling_mean(myVals['volume'],skipAmount).fillna(0)
 	#Skipping each 5th val
 	myVals = myVals.iloc[::skipAmount, :]
 	print("Skipping values: " , myVals)
-	myVals['intPrice'] = myVals['intPrice']-myVals['intPrice'].shift(1).fillna(0)
+	myVals['emaPrice'] = pd.rolling_mean(myVals['intPrice'].shift(10),10).fillna(0)
+	myVals['goodBuy'] = myVals['intPrice']<myVals['emaPrice']
+	#myVals['intPrice'] = myVals['intPrice']-myVals['intPrice'].shift(1).fillna(0)
 	print("Int price: " , myVals)
 	myVals['normPrice'] = myVals['intPrice'] - myVals['intPrice'].mean()
 	myVals['stdPrice'] = (myVals['normPrice'])/myVals['normPrice'].std()*1.0
@@ -49,7 +52,10 @@ def file_data(filename="data/06_01_10.csv"):
 
 
 
-	newmyVals = myVals[['intPrice','volume']]
+	newmyVals = myVals[['intPrice','volume','goodBuy']]
+	meanBuy = myVals['goodBuy'].mean()
+	vals = (myVals['goodBuy']-meanBuy)*(myVals['goodBuy']-meanBuy)
+	print("Baseline: " , vals.mean()*30.0)
 	allData = newmyVals.as_matrix().astype(float)[1:,:]
 	print("MYData: " , allData)
 	return allData , standardDev , meanVal
@@ -140,8 +146,8 @@ def main():
 
 		for i in xrange(1,maxIter):
 			#Batch sizes of 30. 
-			myTrain_x = data[30*i:30*(i+1),:].reshape((1,30,2))
-			myTrain_y = data[30*i+1:30*(i+1)+1,0:1].reshape((1,30,1))
+			myTrain_x = data[30*i:30*(i+1),0:2].reshape((1,30,2))
+			myTrain_y = data[30*i+1:30*(i+1)+1,2:3].reshape((1,30,1))
 			myfeed_dict={X: myTrain_x, Y: myTrain_y}
 			if training_state is not None:
 				myfeed_dict[h] = training_state
@@ -160,8 +166,8 @@ def main():
 
 		for i in xrange(1,maxIter):
 			#Batch sizes of 30. 
-			myTrain_x = data2[30*i:30*(i+1),:].reshape((1,30,2))
-			myTrain_y = data2[30*i+1:30*(i+1)+1,0:1].reshape((1,30,1))
+			myTrain_x = data2[30*i:30*(i+1),0:2].reshape((1,30,2))
+			myTrain_y = data2[30*i+1:30*(i+1)+1,2:3].reshape((1,30,1))
 			myfeed_dict={X: myTrain_x, Y: myTrain_y}
 			if training_state is not None:
 				myfeed_dict[h] = training_state
@@ -217,8 +223,8 @@ def main():
 			if ((i+1) > (len(data)-1.0)/30.0):
 				i = 1
 				curEpoch += 1
-			myTrain_x = data[30*i:30*(i+1),:].reshape((1,30,2))
-			myTrain_y = data[30*i+1:30*(i+1)+1,0:1].reshape((1,30,1))
+			myTrain_x = data[30*i:30*(i+1),0:2].reshape((1,30,2))
+			myTrain_y = data[30*i+1:30*(i+1)+1,2:3].reshape((1,30,1))
 
 			myfeed_dict={X: myTrain_x, Y: myTrain_y}
 			if training_state is not None:
