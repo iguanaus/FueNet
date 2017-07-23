@@ -66,8 +66,8 @@ def main():
 	n_input = len(data[0])
 
 	n_output = 1
-	n_hidden = 50
-	learning_rate = 0.01
+	n_hidden = 125
+	learning_rate = 0.001
 	decay = 0.9
 	numEpochs = 2000
 	reuse = False
@@ -126,7 +126,7 @@ def main():
 	global_step = tf.Variable(0, trainable=False)
 
 	learning_rate = tf.train.exponential_decay(learning_rate, global_step,
-                                           5000, 0.9, staircase=True)
+                                           1000, 0.9, staircase=True)
 	optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate, decay=decay).minimize(cost)
 	init = tf.global_variables_initializer()
 
