@@ -161,7 +161,7 @@ def main():
 			if training_state is not None:
 				myfeed_dict[h] = training_state
 			
-			empty,loss,training_state,output_data_2 = sess.run([optimizer, cost, states,output_data], feed_dict = myfeed_dict)
+			loss,training_state,output_data_2 = sess.run([cost, states,output_data], feed_dict = myfeed_dict)
 			val_losses.append(loss)
 
 		valLoss = sum(val_losses)/len(val_losses)
@@ -169,7 +169,7 @@ def main():
 		print("Our File Validation Loss= " + \
 				  "{:.6f}".format(valLoss))
 
-		maxIter = int((len(data2)/30.0)-1.0)
+		maxIter = int((len(data2)/seq_len)-1.0)
 		val_losses = []
 		training_state = None
 
@@ -181,7 +181,7 @@ def main():
 			if training_state is not None:
 				myfeed_dict[h] = training_state
 			
-			empty,loss,training_state,output_data_2 = sess.run([optimizer, cost, states,output_data], feed_dict = myfeed_dict)
+			loss,training_state,output_data_2 = sess.run([cost, states,output_data], feed_dict = myfeed_dict)
 			val_losses.append(loss)
 			
 		valLoss = sum(val_losses)/len(val_losses)
