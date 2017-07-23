@@ -6,6 +6,7 @@ import numpy as np
 
 def plotPrices():
 
+
 	def read_file(filename):
 		val = 0
 		print("Reading: " , filename)
@@ -15,11 +16,23 @@ def plotPrices():
 		#for i in xrange(0, len(a1)):
 		#	val = val + a1[i]
 		#	a1[i] = val
-		print a1
+		#print a1
 		return a1
 
 	desired = read_file("desiredList_vol50.csv")
+	mean = sum(desired)/len(desired)
+	vals = sum([(val-mean)**2 for val in desired])/len(desired)
+	print("baseline: " , vals)
+
 	predicted = read_file("outputList_vol50.csv")
+	#So this is slightly weird, but I want to graph the continuous for the desired, then the output plus the extra number
+	#val = 0
+	#for i in xrange(0, len(desired)):
+	#	val = val + desired[i]
+	#	predicted[i] = val - desired[i] + predicted[i]
+	#	desired[i] = val
+
+
 
 	legend = ['Desired','Predicted']
 	plt.plot(desired)

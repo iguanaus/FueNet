@@ -17,11 +17,11 @@ notstates = False
 #The output should be in a np array form. Note that the y value doesn't have to be returned. 
 
 def file_data(filename):
-	filename="data/06_01.csv"
+	filename="data/06_01_10.csv"
 	myVals = pd.DataFrame.from_csv(filename)
 	#myVals['seconds'] = (myVals['seconds']*100.0).astype(int)
 	print("MY vals: " , myVals)
-	skipAmount = 50.0
+	skipAmount = 100.0
 	myVals['volume'] = pd.rolling_mean(myVals['volume'],skipAmount).fillna(0)
 	#Skipping each 5th val
 	myVals = myVals.iloc[::skipAmount, :]
@@ -64,7 +64,7 @@ def main():
 	n_input = len(data[0])
 
 	n_output = 1
-	n_hidden = 40
+	n_hidden = 50
 	learning_rate = 0.001
 	decay = 0.9
 	numEpochs = 10
@@ -79,7 +79,7 @@ def main():
 	cell = None
 	h = None
 	#h_b = Non
-	num_layers = 1
+	num_layers = 3
 	#h_b = None
 	sequence_length = [30] * 1
 

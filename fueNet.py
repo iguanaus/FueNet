@@ -17,8 +17,8 @@ notstates = False
 #THis needs to take in the data, then return the data in a list of [weekday,seconds*1000,intPrice,volume]
 #The output should be in a np array form. Note that the y value doesn't have to be returned. 
 
-def file_data(filename):
-	filename="data/06_01_10.csv"
+def file_data(filename="data/06_01_10.csv"):
+	#filename="data/06_01_10.csv"
 	myVals = pd.DataFrame.from_csv(filename)
 	#myVals['seconds'] = (myVals['seconds']*100.0).astype(int)
 	print("MY vals: " , myVals)
@@ -60,7 +60,8 @@ def main():
 	#Create Data
 	max_len_data = 1000000000
 
-	data , standardDev,meanVal= file_data(None)
+	data , standardDev,meanVal= file_data()
+	data2 , standardDev,meanVal= file_data(filename="data/06_11_12.csv")
 
 	n_input = len(data[0])
 
@@ -147,9 +148,30 @@ def main():
 			
 			empty,acc,loss,training_state,output_data_2 = sess.run([optimizer, accuracy, cost, states,output_data], feed_dict = myfeed_dict)
 			val_losses.append(loss)
+
+		valLoss = sum(val_losses)/len(val_losses)
+
+		print("Our File Validation Loss= " + \
+				  "{:.6f}".format(valLoss))
+
+		maxIter = int((len(data2)/30.0)-1.0)
+		val_losses = []
+		training_state = None
+
+		for i in xrange(1,maxIter):
+			#Batch sizes of 30. 
+			myTrain_x = data2[30*i:30*(i+1),:].reshape((1,30,2))
+			myTrain_y = data2[30*i+1:30*(i+1)+1,0:1].reshape((1,30,1))
+			myfeed_dict={X: myTrain_x, Y: myTrain_y}
+			if training_state is not None:
+				myfeed_dict[h] = training_state
+			
+			empty,acc,loss,training_state,output_data_2 = sess.run([optimizer, accuracy, cost, states,output_data], feed_dict = myfeed_dict)
+			val_losses.append(loss)
 			
 		valLoss = sum(val_losses)/len(val_losses)
-		print("Validation Loss= " + \
+
+		print("Real Validation Loss= " + \
 				  "{:.6f}".format(valLoss))
 		f2.write("%d\t%f\n"%(curEpoch, valLoss))
 		f2.flush()
