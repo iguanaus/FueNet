@@ -18,11 +18,11 @@ notstates = False
 #The output should be in a np array form. Note that the y value doesn't have to be returned. 
 
 def file_data(filename):
-	filename="data/06_01.csv"
+	filename="data/06_01_10.csv"
 	myVals = pd.DataFrame.from_csv(filename)
 	#myVals['seconds'] = (myVals['seconds']*100.0).astype(int)
 	print("MY vals: " , myVals)
-	skipAmount = 200.0
+	skipAmount = 100.0
 	myVals['volume'] = pd.rolling_mean(myVals['volume'],skipAmount).fillna(0)
 	#Skipping each 5th val
 	myVals = myVals.iloc[::skipAmount, :]
@@ -65,15 +65,15 @@ def main():
 	n_input = len(data[0])
 
 	n_output = 1
-	n_hidden = 100
-	learning_rate = 0.005
+	n_hidden = 50
+	learning_rate = 0.01
 	decay = 0.9
-	numEpochs = 50
+	numEpochs = 2000
 	reuse = False
 
 	#Structure of this will be [weekday,seconds*1000,intPrice,volume]
 
-	X = tf.placeholder("float32",[None,30,1])
+	X = tf.placeholder("float32",[None,30,2])
 	Y = tf.placeholder("float32",[None,30,1])
 
 	# Input to hidden layer
@@ -86,7 +86,9 @@ def main():
 
 	cell = BasicLSTMCell(n_hidden, state_is_tuple=True, forget_bias=1)
 
-	cells = core_rnn_cell_impl.MultiRNNCell([cell] * num_layers, state_is_tuple=True)
+	cells = core_rnn_cell_impl.MultiRNNCell([BasicLSTMCell(n_hidden, state_is_tuple=True, forget_bias =1) for _ in range(num_layers)],state_is_tuple=True)
+
+	#cells = core_rnn_cell_impl.MultiRNNCell([cell] * num_layers, state_is_tuple=True)
 	if h == None:
 		h = cells.zero_state(1,tf.float32)
 
@@ -123,7 +125,7 @@ def main():
 	global_step = tf.Variable(0, trainable=False)
 
 	learning_rate = tf.train.exponential_decay(learning_rate, global_step,
-                                           500, 0.97, staircase=True)
+                                           5000, 0.9, staircase=True)
 	optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate, decay=decay).minimize(cost)
 	init = tf.global_variables_initializer()
 
@@ -137,7 +139,7 @@ def main():
 
 		for i in xrange(1,maxIter):
 			#Batch sizes of 30. 
-			myTrain_x = data[30*i:30*(i+1),0:1].reshape((1,30,1))
+			myTrain_x = data[30*i:30*(i+1),:].reshape((1,30,2))
 			myTrain_y = data[30*i+1:30*(i+1)+1,0:1].reshape((1,30,1))
 			myfeed_dict={X: myTrain_x, Y: myTrain_y}
 			if training_state is not None:
@@ -193,7 +195,7 @@ def main():
 			if ((i+1) > (len(data)-1.0)/30.0):
 				i = 1
 				curEpoch += 1
-			myTrain_x = data[30*i:30*(i+1),0:1].reshape((1,30,1))
+			myTrain_x = data[30*i:30*(i+1),:].reshape((1,30,2))
 			myTrain_y = data[30*i+1:30*(i+1)+1,0:1].reshape((1,30,1))
 
 			myfeed_dict={X: myTrain_x, Y: myTrain_y}
@@ -206,7 +208,7 @@ def main():
 			print("Epoch: " + str(curEpoch) + " Iter " + str(i) + ", Minibatch Loss= " + \
 				  "{:.6f}".format(loss) + ", Training Accuracy= " + \
 			  	  "{:.5f}".format(acc))
-			if (i % 10 == 0):
+			if (curEpoch % 5 == 0 and i ==1):
 				outputVal = np.array(output_data_2*1.0+0.0)
 				correctVal = myTrain_y
 				#outputVal = np.array(output_data_2*standardDev+meanVal)
