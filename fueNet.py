@@ -80,10 +80,10 @@ def main():
 	n_input = len(data[0])
 
 	n_output = 2
-	n_hidden = 125
+	n_hidden = 150
 	learning_rate = 0.001
 	decay = 0.9
-	numEpochs = 2000
+	numEpochs = 200
 	reuse = False
 
 	#Structure of this will be [weekday,seconds*1000,intPrice,volume]
@@ -141,7 +141,7 @@ def main():
 	global_step = tf.Variable(0, trainable=False)
 
 	learning_rate = tf.train.exponential_decay(learning_rate, global_step,
-                                           1000, 0.9, staircase=True)
+                                           5000, 0.9, staircase=True)
 	optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate, decay=decay).minimize(cost)
 	init = tf.global_variables_initializer()
 
@@ -184,11 +184,11 @@ def main():
 			loss,training_state,output_data_2 = sess.run([cost, states,output_data], feed_dict = myfeed_dict)
 			val_losses.append(loss)
 			
-		valLoss = sum(val_losses)/len(val_losses)
+		testLoss = sum(val_losses)/len(val_losses)
 
 		print("Real Validation Loss= " + \
-				  "{:.6f}".format(valLoss))
-		f2.write("%d\t%f\n"%(curEpoch, valLoss))
+				  "{:.6f}".format(testLoss))
+		f2.write("%d\t%f\t%f\n"%(curEpoch, valLoss,testLoss))
 		f2.flush()
 
 	step = 0
